@@ -67,6 +67,16 @@ def MultiHeadAttention(key_dim, value_dim, num_heads, **kwargs):
   results = tf.keras.layers.Dense(key_dim)(concated); # results.shape = (batch, query_length, key_dim)
   return tf.keras.Model(inputs = (query, key, value), outputs = results);
 
+def AxialBlock(hidden_dim, num_heads, origin_shape, drop_rate = 0.2):
+  inputs = tf.keras.Input((None, None, None, None)); # inputs.shape = (batch, length, h, w, c)
+  results = tf.keras.layers.Lambda(lambda x: tf.reshape(x, (tf.shape(x)[0], -1, tf.shape(x)[-1])))(inputs); # results.shape = (batch, length * h * w, c)
+  attended_a = MultiHeadAttention(hidden_dim, hidden_dim, num_heads, drop_rate = drop_rate, origin_shape = origin_shape, -1)([results, results, results]);
+  attended_b = MultiHeadAttention(hidden_dim, hidden_dim, num_heads, drop_rate = drop_rate, origin_shape = origin_shape, -2)([results, results, results]);
+  attended_c = MultiHeadAttention(hidden_dim, hidden_dim, num_heads, drop_rate = drop_rate, origin_shape = origin_shape, -3)([results, results, results]);
+  results = tf.keras.layers.Add()([attended_a, attended_b, attended_c]);
+  results = tf.keras.layers.Lambda(lambda x: tf.reshape(x[0], tf.shape(x[1])))([results, inputs]);
+  return tf.keras.Model(inputs = inputs, outputs = results);
+
 def Conv3D(filters = None, kernel_size = None, strides = None, use_2d = False):
   assert type(kernel_size) in [list, tuple] and len(kernel_size) == 3;
   assert type(strides) in [list, tuple] and len(strides) == 3;
@@ -92,11 +102,10 @@ def Conv3D(filters = None, kernel_size = None, strides = None, use_2d = False):
     results = tf.keras.layers.Lambda(lambda x: tf.reshape(x, (-1, tf.shape(x)[2], tf.shape(x)[3], tf.shape(x)[4])))(transposed); # results.shape = (batch * h, w, length, c)
     results = tf.keras.layers.Conv2D(filters, (kernel_size[2], kernel_size[0]), (strides[2], strides[0]), padding = 'valid')(results);
     results = tf.keras.layers.Lambda(lambda x: tf.reshape(x[0], tf.shape(x[1])))([results, transposed]); # results.shape = (batch, h, w, length, c)
-    transposed = tf.keras.layers.Lambda(lambda x: tf.transpose(x, (0, 3, 1, 2, 4)))(results); # results.shape = (batch, length, h, w, c)
-    results = transposed;
+    results = tf.keras.layers.Lambda(lambda x: tf.transpose(x, (0, 3, 1, 2, 4)))(results); # results.shape = (batch, length, h, w, c)
   return tf.keras.Model(inputs = inputs, outputs = results);
 
-def AttentionResidualBlock(in_channels, out_channels):
+def AttentionResidualBlock(in_channels, out_channels, origin_shape, drop_rate):
   inputs = tf.keras.Input((None, None, in_channels));
   short = inputs;
   results = tf.keras.layers.BatchNormalization()(inputs);
@@ -107,4 +116,6 @@ def AttentionResidualBlock(in_channels, out_channels):
   results = Conv3D(out_channels, (1,1,1), (1,1,1))(results);
   results = tf.keras.layers.BatchNormalization()(results);
   results = tf.keras.layers.ReLU()(results);
-  results = 
+  results = AxialBlock(out_channels, 2, origin_shape, drop_rate)(results);
+  results = tf.keras.layers.Add()([results, short]);
+  return tf.keras.Model(inputs = inputs, outputs = results);
