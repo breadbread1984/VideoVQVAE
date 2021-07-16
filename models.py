@@ -105,23 +105,24 @@ def Conv3D(filters = None, kernel_size = None, strides = None, use_2d = False):
     results = tf.keras.layers.Lambda(lambda x: tf.transpose(x, (0, 3, 1, 2, 4)))(results); # results.shape = (batch, length, h, w, c)
   return tf.keras.Model(inputs = inputs, outputs = results);
 
-def AttentionResidualBlock(channels, origin_shape, drop_rate = 0.2):
-  inputs = tf.keras.Input((None, None, None, None)); # inputs.shape = (batch, length, h, w, c)
+def AttentionResidualBlock(in_channels, out_channels, origin_shape, drop_rate = 0.2):
+  assert type(origin_shape) in [list, tuple] and len(origin_shape) == 3;
+  inputs = tf.keras.Input((origin_shape[0], origin_shape[1], origin_shape[2], in_channels)); # inputs.shape = (batch, length, h, w, c)
   short = inputs;
   results = tf.keras.layers.BatchNormalization()(inputs);
   results = tf.keras.layers.ReLU()(results);
-  results = Conv3D(channels // 2, (3,3,3), (1,1,1))(results);
+  results = Conv3D(out_channels // 2, (3,3,3), (1,1,1))(results);
   results = tf.keras.layers.BatchNormalization()(results);
   results = tf.keras.layers.ReLU()(results);
-  results = Conv3D(channels, (1,1,1), (1,1,1))(results);
+  results = Conv3D(out_channels, (1,1,1), (1,1,1))(results);
   results = tf.keras.layers.BatchNormalization()(results);
   results = tf.keras.layers.ReLU()(results);
-  results = AxialBlock(channels, 2, origin_shape, drop_rate)(results);
+  results = AxialBlock(out_channels, 2, origin_shape, drop_rate)(results);
   results = tf.keras.layers.Add()([results, short]);
   return tf.keras.Model(inputs = inputs, outputs = results);
 
 if __name__ == "__main__":
-  attn_block = AttentionResidualBlock(256, (16,64,64), 0.2);
+  attn_block = AttentionResidualBlock(100, 256, (16,64,64), 0.2);
   import numpy as np;
   a = np.random.normal(size = (4, 16, 64, 64, 100));
   results = attn_block(a);
