@@ -126,7 +126,7 @@ class CodeBook(tf.keras.layers.Layer):
   def __init__(self, embed_dim = 128, n_embed = 10000, **kwargs):
     self.embed_dim = embed_dim;
     self.n_embed = n_embed;
-    self.initialized = False;
+    self.initialized = False if 'initialized' not in kwargs else kwargs['initialized'];
     self.enable_train = True;
     super(CodeBook, self).__init__(**kwargs);
   def build(self, input_shape):
@@ -144,7 +144,7 @@ class CodeBook(tf.keras.layers.Layer):
       samples = tf.reshape(inputs, (-1, tf.shape(inputs)[-1])); # samples.shape = (batch * length * h * w, c)
       if tf.math.less(tf.shape(samples)[0], self.n_embed):
         # if number of samples for initialization is too small, do bootstrapping
-        n_repeat = self.n_embed + tf.shape(samples)[0] - 1) // tf.shape(samples)[0]; # n_repeat.shape = ()
+        n_repeat = (self.n_embed + tf.shape(samples)[0] - 1) // tf.shape(samples)[0]; # n_repeat.shape = ()
         samples = tf.tile(samples, (n_repeat, 1)); # x.shape = (n_repeat * batch * length * h * w, c)
         stddev = 0.01 / tf.math.sqrt(tf.cast(tf.shape(samples)[1], dtype = tf.float32)); # std.shape = ()
         samples = samples + tf.random.normal(tf.shape(samples), stddev = stddev); # x.shape = (n_repeat * batch * length * h * w, c)
@@ -167,8 +167,8 @@ class CodeBook(tf.keras.layers.Layer):
       self.cluster_size.assign(updated_cluster_size);
       self.cluster_sum.assign(updated_cluster_sum);
       n_sample = tf.math.reduce_sum(self.cluster_size); # n_sample.shape = ()
-      cluster_size = (self.cluster_size + self.eps) * n_sample / (n_sample + self.n_embed * self.eps); # cluster_size.shape = (n_embed)
-      cluster_mean = self.cluster_sum / cluster_size; # cluster_mean.shape = (dim, n_embed)
+      cluster_size = (self.cluster_size + 1e-5) * n_sample / (n_sample + self.n_embed * 1e-5); # cluster_size.shape = (n_embed)
+      cluster_mean = self.cluster_sum / tf.expand_dims(cluster_size, axis = -1); # cluster_mean.shape = (dim, n_embed)
       self.cluster_mean.assign(cluster_mean);
     cluster_index = tf.reshape(cluster_index, tf.shape(inputs)[:-1]); # cluster_index.shape = (batch, length, h, w)
     quantize = tf.nn.embedding_lookup(self.cluster_mean, cluster_index); # quantize.shape = (batch, length, h, w, dim)
@@ -187,7 +187,15 @@ class CodeBook(tf.keras.layers.Layer):
     return cls(**config);
 
 if __name__ == "__main__":
+
   attn_block = AttentionResidualBlock(256, (16,64,64), 0.2);
   a = np.random.normal(size = (4, 16, 64, 64, 256));
   results = attn_block(a);
   print(results.shape);
+  
+  inputs = tf.keras.Input((128,));
+  results = CodeBook()(inputs);
+  model = tf.keras.Model(inputs = inputs, outputs = results);
+  inputs = np.random.normal(size = (100, 128));
+  outputs, cluster_index, loss = model(inputs);
+  print(outputs.shape);
