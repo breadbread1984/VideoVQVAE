@@ -12,7 +12,7 @@ flags.DEFINE_string('ucf_root', default = None, help = 'root directory of ucf101
 flags.DEFINE_string('train_list', default = None, help = 'video list for trainset');
 flags.DEFINE_string('test_list', default = None, help = 'video list for testset');
 
-def generate_dataset(video_root, video_list, size = (64,64), output_file):
+def generate_dataset(video_root, video_list, size = (64,64), output_file = 'trainset.tfrecord'):
   if not exists(video_list):
     raise Exception('invalid video list!');
   videos = list();
@@ -20,7 +20,7 @@ def generate_dataset(video_root, video_list, size = (64,64), output_file):
     for line in f:
       path, classid = line.strip().split(' ');
       classid = int(classid);
-      self.videos.append(join(video_root, path));
+      videos.append(join(video_root, path));
   writer = tf.io.TFRecordWriter(output_file);
   for i in range(len(videos)):
     print('%d/%d' % (i+1, len(videos)));
@@ -51,7 +51,7 @@ def parse_function(serialized_example):
   feature = tf.io.parse_single_example(
     serialized_example,
     features = {
-      'video': tf.io.FixedLenFeature((,), dtype = tf.string)
+      'video': tf.io.FixedLenFeature((), dtype = tf.string)
     });
   video = tf.io.parse_tensor(feature['video']); # video.shape = (length, h, w, c)
   return video;
