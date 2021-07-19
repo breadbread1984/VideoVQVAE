@@ -37,7 +37,7 @@ def generate_dataset(video_root, video_list, size = (64,64), output_file = 'trai
       frames = np.concatenate([frames, frame], axis = 0); # frames.shape = (length, h, w, c)
     trainsample = tf.train.Example(features = tf.train.Features(
       feature = {
-        'video': tf.train.Feature(bytes_list = tf.train.BytesList(value = tf.io.serialize_tensor(frames))),
+        'video': tf.train.Feature(bytes_list = tf.train.BytesList(value = [tf.io.serialize_tensor(frames).numpy()])),
       }
     ));
     writer.write(trainsample.SerializeToString());
