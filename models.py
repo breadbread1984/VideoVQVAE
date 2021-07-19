@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+from math import log2;
 import numpy as np;
 import tensorflow as tf;
 
@@ -10,7 +11,7 @@ def AxialAttention(key_dim, value_dim, num_heads, drop_rate = 0.5, origin_shape 
   # for example key.shape = (batch, heads, h, w, c, dim) and axial_dim = -2
   # key.shape becomes (batch, new_heads = heads * h * c, seq_length = w, dim),
   # the self attention matrix become w x w, rather than (h * w * c) x (h * w * c)
-  assert type(origin_shape) in [list, tuple];
+  assert type(origin_shape) in [list, tuple] and len(origin_shape) == 2;
   assert 0 <= axial_dim < 3 or -3 <= axial_dim < 0;
   query = tf.keras.Input((num_heads, None, key_dim // num_heads)); # query.shape = (batch, heads, query_length, key_dim // heads)
   key = tf.keras.Input((num_heads, None, key_dim // num_heads)); # key.shape = (batch, heads, key_length, key_dim // heads)
@@ -107,8 +108,8 @@ def Conv3D(in_channels, out_channels = None, kernel_size = None, strides = None,
   return tf.keras.Model(inputs = inputs, outputs = results);
 
 def AttentionResidualBlock(channels, origin_shape, drop_rate = 0.2):
-  assert type(origin_shape) in [list, tuple] and len(origin_shape) == 3;
-  inputs = tf.keras.Input((origin_shape[0], origin_shape[1], origin_shape[2], channels)); # inputs.shape = (batch, length, h, w, c)
+  assert type(origin_shape) in [list, tuple] and len(origin_shape) == 2;
+  inputs = tf.keras.Input((None, origin_shape[0], origin_shape[1], channels)); # inputs.shape = (batch, length, h, w, c)
   short = inputs;
   results = tf.keras.layers.BatchNormalization()(inputs);
   results = tf.keras.layers.ReLU()(results);
@@ -186,16 +187,29 @@ class CodeBook(tf.keras.layers.Layer):
   def from_config(cls, config):
     return cls(**config);
 
+def Encoder(channels, res_layers = 4, downsamples = (4,4,4), use_2d = False):
+  inputs = tf.keras.Input((None, None, None, channels)); # inputs.shape = (batch, length, h, w, c)
+  results = inputs;
+  n_times_downsamples = np.array([int(log2(d)) for d in downsamples]);
+  for i in range(np.max(n_times_downsamples)):
+    strides = [2 if d > 0 else 1 for d in n_times_downsamples];
+    results = Conv3D(3 if i == 0 else channels, channels, (4, 4, 4), strides, use_2d)(results); # results.shape = (batch, length, h, w, c)
+    results = tf.keras.layers.ReLU()(results);
+    n_times_downsamples -= 1;
+  results = Conv3D(channels, channels, (3,3,3), (1,1,1), use_2d)(results); # results.shape = (batch, length, h, w, c)
+  for i in range(res_layers):
+    results = AttentionResidualBlock(channels, (), 0.2)(results); #results.shape = ()
+
 if __name__ == "__main__":
 
-  attn_block = AttentionResidualBlock(256, (16,64,64), 0.2);
+  attn_block = AttentionResidualBlock(256, (64,64), 0.2);
   a = np.random.normal(size = (4, 16, 64, 64, 256));
   results = attn_block(a);
   print(results.shape);
   
-  inputs = tf.keras.Input((128,));
+  inputs = tf.keras.Input((10, 10, 10, 128,));
   results = CodeBook()(inputs);
   model = tf.keras.Model(inputs = inputs, outputs = results);
-  inputs = np.random.normal(size = (100, 128));
+  inputs = np.random.normal(size = (4, 10, 10, 10, 128));
   outputs, cluster_index, loss = model(inputs);
   print(outputs.shape);
