@@ -1,9 +1,16 @@
 #!/usr/bin/python3
 
+from absl import flags, app;
 from os.path import exists, join;
 import cv2;
 import numpy as np;
 import tensorflow as tf;
+
+FLAGS = flags.FLAGS;
+
+flags.DEFINE_string('ucf_root', default = None, help = 'root directory of ucf101 dataset');
+flags.DEFINE_string('train_list', default = None, help = 'video list for trainset');
+flags.DEFINE_string('test_list', default = None, help = 'video list for testset');
 
 def generate_dataset(video_root, video_list, size = (64,64), output_file):
   if not exists(video_list):
@@ -12,9 +19,12 @@ def generate_dataset(video_root, video_list, size = (64,64), output_file):
   with open(video_list, 'r') as f:
     for line in f:
       path, classid = line.strip().split(' ');
+      classid = int(classid);
       self.videos.append(join(video_root, path));
   writer = tf.io.TFRecordWriter(output_file);
-  for video in videos:
+  for i in range(len(videos)):
+    print('%d/%d' % (i+1, len(videos)));
+    video = videos[i];
     cap = cv2.VideoCapture(video);
     if False == cap.isOpened():
       print('can\'t open video %s' % video);
@@ -27,8 +37,15 @@ def generate_dataset(video_root, video_list, size = (64,64), output_file):
       frames = np.concat([frames, frame], axis = 0); # frames.shape = (length, h, w, c)
     trainsample = tf.train.Example(features = tf.train.Features(
       feature = {
-        'video': tf.train.Feature(bytes_list = )
+        'video': tf.train.Feature(bytes_list = tf.train.BytesList(value = tf.io.serialize_tensor(frames))),
       }
     ));
+    writer.write(trainsample.SerializeToString());
+  writer.close();
 
-    
+def main(unused_argv):
+  generate_dataset(FLAGS.ucf_root, FLAGS.train_list, output_file = 'trainset.tfrecord');
+  generate_dataset(FLAGS.ucf_root, FLAGS.test_list, output_file = 'testset.tfrecord');
+  
+if __name__ == "__main__":
+  app.run(main);
