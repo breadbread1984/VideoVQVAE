@@ -86,17 +86,17 @@ def Conv3D(in_channels, out_channels = None, kernel_size = None, strides = None,
   if use_2d == False:
     results = tf.keras.layers.Conv3D(out_channels, kernel_size, strides, padding = 'same')(inputs);
   else:
-    results = tf.keras.layers.Lambda(lambda x: tf.reshape(x, (-1, tf.shape(x)[2], tf.shape(x)[3], tf.shape(x)[4])))(inputs); # results.shape = (batch * length, h, w, c)
+    results = tf.keras.layers.Lambda(lambda x: tf.reshape(x, (-1, tf.shape(x)[2], tf.shape(x)[3], x.shape[4])))(inputs); # results.shape = (batch * length, h, w, c)
     results = tf.keras.layers.Conv2D(out_channels, (kernel_size[1], kernel_size[2]), (strides[1], strides[2]), padding = 'same')(results);
-    results = tf.keras.layers.Lambda(lambda x: tf.reshape(x[0], tf.shape(x[1])))([results, padded]); # results.shape = (batch, length, h, w, c)
+    results = tf.keras.layers.Lambda(lambda x: tf.reshape(x[0], tf.shape(x[1])))([results, inputs]); # results.shape = (batch, length, h, w, c)
     transposed = tf.keras.layers.Lambda(lambda x: tf.transpose(x, (0, 3, 1, 2, 4)))(results); # results.shape = (batch, w, length, h, c)
     
-    results = tf.keras.layers.Lambda(lambda x: tf.reshape(x, (-1, tf.shape(x)[2], tf.shape(x)[3], tf.shape(x)[4])))(transposed); # results.shape = (batch * w, length, h, c)
+    results = tf.keras.layers.Lambda(lambda x: tf.reshape(x, (-1, tf.shape(x)[2], tf.shape(x)[3], x.shape[4])))(transposed); # results.shape = (batch * w, length, h, c)
     results = tf.keras.layers.Conv2D(out_channels, (kernel_size[0], kernel_size[1]), (strides[0], strides[1]), padding = 'same')(results);
     results = tf.keras.layers.Lambda(lambda x: tf.reshape(x[0], tf.shape(x[1])))([results, transposed]); # results.shape = (batch, w, length, h, c)
     transposed = tf.keras.layers.Lambda(lambda x: tf.transpose(x, (0, 3, 1, 2, 4)))(results); # results.shape = (batch, h, w, length, c)
     
-    results = tf.keras.layers.Lambda(lambda x: tf.reshape(x, (-1, tf.shape(x)[2], tf.shape(x)[3], tf.shape(x)[4])))(transposed); # results.shape = (batch * h, w, length, c)
+    results = tf.keras.layers.Lambda(lambda x: tf.reshape(x, (-1, tf.shape(x)[2], tf.shape(x)[3], x.shape[4])))(transposed); # results.shape = (batch * h, w, length, c)
     results = tf.keras.layers.Conv2D(out_channels, (kernel_size[2], kernel_size[0]), (strides[2], strides[0]), padding = 'same')(results);
     results = tf.keras.layers.Lambda(lambda x: tf.reshape(x[0], tf.shape(x[1])))([results, transposed]); # results.shape = (batch, h, w, length, c)
     results = tf.keras.layers.Lambda(lambda x: tf.transpose(x, (0, 3, 1, 2, 4)))(results); # results.shape = (batch, length, h, w, c)
@@ -109,17 +109,17 @@ def Conv3DTranspose(in_channels, out_channels = None, kernel_size = None, stride
   if use_2d == False:
     results = tf.keras.layers.Conv3DTranspose(out_channels, kernel_size, strides, padding = 'same')(inputs);
   else:
-    results = tf.keras.layers.Lambda(lambda x: tf.reshape(x, (-1, tf.shape(x)[2], tf.shape(x)[3], tf.shape(x)[4])))(inputs); # results.shape = (batch * length, h, w, c)
+    results = tf.keras.layers.Lambda(lambda x: tf.reshape(x, (-1, tf.shape(x)[2], tf.shape(x)[3], x.shape[4])))(inputs); # results.shape = (batch * length, h, w, c)
     results = tf.keras.layers.Conv2DTranspose(out_channels, (kernel_size[1], kernel_size[2]), (strides[1], strides[2]), padding = 'same')(results);
-    results = tf.keras.layers.Lambda(lambda x: tf.reshape(x[0], tf.shape(x[1])))([results, padded]); # results.shape = (batch, length, h, w, c)
+    results = tf.keras.layers.Lambda(lambda x: tf.reshape(x[0], tf.shape(x[1])))([results, inputs]); # results.shape = (batch, length, h, w, c)
     transposed = tf.keras.layers.Lambda(lambda x: tf.transpose(x, (0, 3, 1, 2, 4)))(results); # results.shape = (batch, w, length, h, c)
     
-    results = tf.keras.layers.Lambda(lambda x: tf.reshape(x, (-1, tf.shape(x)[2], tf.shape(x)[3], tf.shape(x)[4])))(transposed); # results.shape = (batch * w, length, h, c)
+    results = tf.keras.layers.Lambda(lambda x: tf.reshape(x, (-1, tf.shape(x)[2], tf.shape(x)[3], x.shape[4])))(transposed); # results.shape = (batch * w, length, h, c)
     results = tf.keras.layers.Conv2DTranspose(out_channels, (kernel_size[0], kernel_size[1]), (strides[0], strides[1]), padding = 'same')(results);
     results = tf.keras.layers.Lambda(lambda x: tf.reshape(x[0], tf.shape(x[1])))([results, transposed]); # results.shape = (batch, w, length, h, c)
     transposed = tf.keras.layers.Lambda(lambda x: tf.transpose(x, (0, 3, 1, 2, 4)))(results); # results.shape = (batch, h, w, length, c)
     
-    results = tf.keras.layers.Lambda(lambda x: tf.reshape(x, (-1, tf.shape(x)[2], tf.shape(x)[3], tf.shape(x)[4])))(transposed); # results.shape = (batch * h, w, length, c)
+    results = tf.keras.layers.Lambda(lambda x: tf.reshape(x, (-1, tf.shape(x)[2], tf.shape(x)[3], x.shape[4])))(transposed); # results.shape = (batch * h, w, length, c)
     results = tf.keras.layers.Conv2DTranspose(out_channels, (kernel_size[2], kernel_size[0]), (strides[2], strides[0]), padding = 'same')(results);
     results = tf.keras.layers.Lambda(lambda x: tf.reshape(x[0], tf.shape(x[1])))([results, transposed]); # results.shape = (batch, h, w, length, c)
     results = tf.keras.layers.Lambda(lambda x: tf.transpose(x, (0, 3, 1, 2, 4)))(results); # results.shape = (batch, length, h, w, c)
