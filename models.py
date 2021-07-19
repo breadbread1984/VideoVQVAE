@@ -187,8 +187,9 @@ class CodeBook(tf.keras.layers.Layer):
   def from_config(cls, config):
     return cls(**config);
 
-def Encoder(channels, res_layers = 4, downsamples = (4,4,4), use_2d = False):
-  inputs = tf.keras.Input((None, None, None, channels)); # inputs.shape = (batch, length, h, w, c)
+def Encoder(channels = 240, res_layers = 4, downsamples = (4,4,4), origin_shape = (64, 64), use_2d = False):
+  assert type(origin_shape) in [list, tuple] and len(origin_shape) == 2;
+  inputs = tf.keras.Input((None, None, None, 3)); # inputs.shape = (batch, length, h, w, c)
   results = inputs;
   n_times_downsamples = np.array([int(log2(d)) for d in downsamples]);
   for i in range(np.max(n_times_downsamples)):
@@ -198,10 +199,13 @@ def Encoder(channels, res_layers = 4, downsamples = (4,4,4), use_2d = False):
     n_times_downsamples -= 1;
   results = Conv3D(channels, channels, (3,3,3), (1,1,1), use_2d)(results); # results.shape = (batch, length, h, w, c)
   for i in range(res_layers):
-    results = AttentionResidualBlock(channels, (), 0.2)(results); #results.shape = ()
+    results = AttentionResidualBlock(channels, origin_shape, 0.2)(results); #results.shape = (batch, length, h, w, c)
+  results = tf.keras.layers.BatchNormalization()(results);
+  results = tf.keras.layers.ReLU()(results);
+  return tf.keras.Model(inputs = inputs, outputs = results);
 
 if __name__ == "__main__":
-
+  '''
   attn_block = AttentionResidualBlock(256, (64,64), 0.2);
   a = np.random.normal(size = (4, 16, 64, 64, 256));
   results = attn_block(a);
@@ -212,4 +216,9 @@ if __name__ == "__main__":
   model = tf.keras.Model(inputs = inputs, outputs = results);
   inputs = np.random.normal(size = (4, 10, 10, 10, 128));
   outputs, cluster_index, loss = model(inputs);
+  print(outputs.shape);
+  '''
+  inputs = np.random.normal(size = (4, 16, 64, 64, 3));
+  encoder = Encoder();
+  outputs = encoder(inputs);
   print(outputs.shape);
