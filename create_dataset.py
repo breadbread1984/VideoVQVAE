@@ -34,7 +34,7 @@ def generate_dataset(video_root, video_list, size = (64,64), output_file = 'trai
       ret, frame = cap.read();
       if False == ret: break;
       frame = np.expand_dims(cv2.resize(frame, size), axis = 0); # frame.shape = (1, h, w, c)
-      frames = np.concat([frames, frame], axis = 0); # frames.shape = (length, h, w, c)
+      frames = np.concatenate([frames, frame], axis = 0); # frames.shape = (length, h, w, c)
     trainsample = tf.train.Example(features = tf.train.Features(
       feature = {
         'video': tf.train.Feature(bytes_list = tf.train.BytesList(value = tf.io.serialize_tensor(frames))),
