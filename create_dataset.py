@@ -46,6 +46,18 @@ def generate_dataset(video_root, video_list, size = (64,64), output_file):
 def main(unused_argv):
   generate_dataset(FLAGS.ucf_root, FLAGS.train_list, output_file = 'trainset.tfrecord');
   generate_dataset(FLAGS.ucf_root, FLAGS.test_list, output_file = 'testset.tfrecord');
-  
+
+def parse_function(serialized_example):
+  feature = tf.io.parse_single_example(
+    serialized_example,
+    features = {
+      'video': tf.io.FixedLenFeature((,), dtype = tf.string)
+    });
+  video = tf.io.parse_tensor(feature['video']); # video.shape = (length, h, w, c)
+  return video;
+
+def load_ucf101(filename):
+  return tf.data.TFRecordDataset(filename).map(parse_function).repeat(-1);
+
 if __name__ == "__main__":
   app.run(main);
