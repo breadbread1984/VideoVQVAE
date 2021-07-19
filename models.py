@@ -122,8 +122,40 @@ def AttentionResidualBlock(channels, origin_shape, drop_rate = 0.2):
   results = tf.keras.layers.Add()([results, short]);
   return tf.keras.Model(inputs = inputs, outputs = results);
 
+class CodeBook(tf.keras.layers.Layer):
+  def __init__(self, embed_dim = 128, n_embed = 10000, **kwargs):
+    self.embed_dim = embed_dim;
+    self.n_embed = n_embed;
+    self.initialized = False;
+    super(CodeBook, self).__init__(**kwargs);
+  def build(self, input_shape):
+    self.cluster_mean = self.add_weight(shape = (self.n_embed, self.embed_dim), dtype = tf.float32, trainable = True, name = 'cluster_mean');
+    self.cluster_size = self.add_weight(shape = (self.n_embed,), dtype = tf.float32, initializer = tf.keras.initializers.Zeros(), trainable = True, name = 'cluster_size');
+    self.cluster_sum = self.add_weight(shape = (self.n_embed, self.embed_dim), dtype = tf.float32, trainable = True, name = 'cluster_sum');
+  def call(self, inputs):
+    # inputs.shape = (batch, length, h, w, c)
+    if self.initialized == False:
+      # initialize clusters with the first batch of samples
+      samples = tf.reshape(inputs, (-1, tf.shape(inputs)[-1])); # samples.shape = (batch * length * h * w, c)
+      if tf.math.less(tf.shape(samples)[0], self.n_embed):
+        # if number of samples for initialization is too small, do bootstrapping
+        n_repeat = self.n_embed + tf.shape(samples)[0] - 1) // tf.shape(samples)[0]; # n_repeat.shape = ()
+        samples = tf.tile(samples, (n_repeat, 1)); # x.shape = (n_repeat * batch * length * h * w, c)
+        stddev = 0.01 / tf.math.sqrt(tf.cast(tf.shape(samples)[1], dtype = tf.float32)); # std.shape = ()
+        samples = samples + tf.random.normal(tf.shape(samples), stddev = stddev); # x.shape = (n_repeat * batch * length * h * w, c)
+      samples = tf.random.shuffle(samples)[:self.n_embed]; # samples.shape = (n_embed, c)
+      self.cluster_mean.assign(samples);
+      self.cluster_sum.assign(samples);
+      self.cluster_size.assign(tf.ones((self.n_embed,)));
+      self.initialized = True;
+    samples = tf.reshape(inputs, (01, tf.shape(inputs)[-1])); # samples.shape = (batch * length * h * w, c)
+    # dist = (X - cluster_mean)^2 = X' * X - 2 * X' * Embed + trace(Embed' * Embed),  dist.shape = (n_sample, n_embed), euler distances to cluster_meanding vectors
+    dist = tf.math.reduce_sum(samples ** 2, axis = 1, keepdims = True) - 2 * tf.linalg.matmul(samples, self.cluster_mean, transpose_b = True) + tf.math.reduce_sum(tf.transpose(self.cluster_mean) ** 2, axis = 0, keepdims = True);
+    cluster_index = tf.math.argmin(dist, axis = 1); # cluster_index.shape = (n_sample)
+    
+
 if __name__ == "__main__":
   attn_block = AttentionResidualBlock(256, (16,64,64), 0.2);
-  a = np.random.normal(size = (4, 16, 64, 64, 100));
+  a = np.random.normal(size = (4, 16, 64, 64, 256));
   results = attn_block(a);
   print(results.shape);
