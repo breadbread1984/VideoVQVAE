@@ -107,6 +107,34 @@ def Conv3D(in_channels, out_channels = None, kernel_size = None, strides = None,
     results = tf.keras.layers.Lambda(lambda x: tf.transpose(x, (0, 3, 1, 2, 4)))(results); # results.shape = (batch, length, h, w, c)
   return tf.keras.Model(inputs = inputs, outputs = results);
 
+def Conv3DTranspose(in_channels, out_channels = None, kernel_size = None, strides = None, use_2d = False):
+  assert type(kernel_size) in [list, tuple] and len(kernel_size) == 3;
+  assert type(strides) in [list, tuple] and len(strides) == 3;
+  def calc_pads():
+    total_pad = [k - s for k,s in zip(kernel_size, strides)];
+    pads = tuple([(p // 2 + p % 2, p // 2) for p in total_pad]);
+    return pads;
+  inputs = tf.keras.Input((None, None, None, in_channels)); # inputs.shape = (batch, length, h, w, c)
+  padded = tf.keras.layers.ZeroPadding3D(padding = calc_pads())(inputs);
+  if use_2d == False:
+    results = tf.keras.layers.Conv3DTranspose(out_channels, kernel_size, strides, padding = 'valid')(padded);
+  else:
+    results = tf.keras.layers.Lambda(lambda x: tf.reshape(x, (-1, tf.shape(x)[2], tf.shape(x)[3], tf.shape(x)[4])))(padded); # results.shape = (batch * length, h, w, c)
+    results = tf.keras.layers.Conv2DTranspose(out_channels, (kernel_size[1], kernel_size[2]), (strides[1], strides[2]), padding = 'valid')(results);
+    results = tf.keras.layers.Lambda(lambda x: tf.reshape(x[0], tf.shape(x[1])))([results, padded]); # results.shape = (batch, length, h, w, c)
+    transposed = tf.keras.layers.Lambda(lambda x: tf.transpose(x, (0, 3, 1, 2, 4)))(results); # results.shape = (batch, w, length, h, c)
+    
+    results = tf.keras.layers.Lambda(lambda x: tf.reshape(x, (-1, tf.shape(x)[2], tf.shape(x)[3], tf.shape(x)[4])))(transposed); # results.shape = (batch * w, length, h, c)
+    results = tf.keras.layers.Conv2DTranspose(out_channels, (kernel_size[0], kernel_size[1]), (strides[0], strides[1]), padding = 'valid')(results);
+    results = tf.keras.layers.Lambda(lambda x: tf.reshape(x[0], tf.shape(x[1])))([results, transposed]); # results.shape = (batch, w, length, h, c)
+    transposed = tf.keras.layers.Lambda(lambda x: tf.transpose(x, (0, 3, 1, 2, 4)))(results); # results.shape = (batch, h, w, length, c)
+    
+    results = tf.keras.layers.Lambda(lambda x: tf.reshape(x, (-1, tf.shape(x)[2], tf.shape(x)[3], tf.shape(x)[4])))(transposed); # results.shape = (batch * h, w, length, c)
+    results = tf.keras.layers.Conv2DTranspose(out_channels, (kernel_size[2], kernel_size[0]), (strides[2], strides[0]), padding = 'valid')(results);
+    results = tf.keras.layers.Lambda(lambda x: tf.reshape(x[0], tf.shape(x[1])))([results, transposed]); # results.shape = (batch, h, w, length, c)
+    results = tf.keras.layers.Lambda(lambda x: tf.transpose(x, (0, 3, 1, 2, 4)))(results); # results.shape = (batch, length, h, w, c)
+  return tf.keras.Model(inputs = inputs, outputs = results);
+
 def AttentionResidualBlock(channels, origin_shape, drop_rate = 0.2):
   assert type(origin_shape) in [list, tuple] and len(origin_shape) == 2;
   inputs = tf.keras.Input((None, origin_shape[0], origin_shape[1], channels)); # inputs.shape = (batch, length, h, w, c)
@@ -188,20 +216,42 @@ class CodeBook(tf.keras.layers.Layer):
     return cls(**config);
 
 def Encoder(channels = 240, res_layers = 4, downsamples = (4,4,4), origin_shape = (64, 64), use_2d = False):
+  # NOTE: downsamples: downsample ratio array for dimension length height and width
+  assert type(downsamples) in [list, tuple] and len(downsamples) == 3;
   assert type(origin_shape) in [list, tuple] and len(origin_shape) == 2;
-  inputs = tf.keras.Input((None, None, None, 3)); # inputs.shape = (batch, length, h, w, c)
+  inputs = tf.keras.Input((None, origin_shape[0], origin_shape[1], 3)); # inputs.shape = (batch, length, h, w, c)
   results = inputs;
   n_times_downsamples = np.array([int(log2(d)) for d in downsamples]);
-  for i in range(np.max(n_times_downsamples)):
+  max_depth = np.max(n_times_downsamples);
+  for i in range(max_depth):
     strides = [2 if d > 0 else 1 for d in n_times_downsamples];
     results = Conv3D(3 if i == 0 else channels, channels, (4, 4, 4), strides, use_2d)(results); # results.shape = (batch, length, h, w, c)
     results = tf.keras.layers.ReLU()(results);
     n_times_downsamples -= 1;
   results = Conv3D(channels, channels, (3,3,3), (1,1,1), use_2d)(results); # results.shape = (batch, length, h, w, c)
   for i in range(res_layers):
-    results = AttentionResidualBlock(channels, origin_shape, 0.2)(results); #results.shape = (batch, length, h, w, c)
+    results = AttentionResidualBlock(channels, (origin_shape[0] // downsamples[1], origin_shape[1] // downsamples[2]), 0.2)(results); #results.shape = (batch, length, h, w, c)
   results = tf.keras.layers.BatchNormalization()(results);
   results = tf.keras.layers.ReLU()(results);
+  return tf.keras.Model(inputs = inputs, outputs = results);
+
+def Decoder(channels = 240, res_layers = 4, upsamples = (4,4,4), origin_shape = (64, 64), use_2d = False):
+  assert type(upsamples) in [list, tuple] and len(upsamples) == 3;
+  assert type(origin_shape) in [list, tuple] and len(origin_shape) == 2;
+  inputs = tf.keras.Input((None, origin_shape[0] // upsamples[1], origin_shape[1] // upsamples[2], 240)); # inputs.shape = (batch, length, h, w, c)
+  results = inputs;
+  for i in range(res_layers):
+    results = AttentionResidualBlock(channels, (origin_shape[0] // upsamples[1], origin_shape[1] // upsamples[2]), 0.2)(results); # results.shape = (batch, length, h, w, c)
+  results = tf.keras.layers.BatchNormalization()(results);
+  results = tf.keras.layers.ReLU()(results);
+  n_times_upsamples = np.array([int(log2(d)) for d in upsamples]);
+  max_depth = np.max(n_times_upsamples);
+  for i in range(max_depth):
+    strides = [2 if d > 0 else 1 for d in n_times_upsamples];
+    results = Conv3DTranspose(channels, 3 if i == max_depth - 1 else channels, (4,4,4), strides, use_2d)(results);
+    if i < max_depth - 1:
+      results = tf.keras.layers.ReLU()(results);
+    n_times_upsamples -= 1;
   return tf.keras.Model(inputs = inputs, outputs = results);
 
 if __name__ == "__main__":
@@ -220,5 +270,10 @@ if __name__ == "__main__":
   '''
   inputs = np.random.normal(size = (4, 16, 64, 64, 3));
   encoder = Encoder();
+  encoder.save('encoder.h5');
   outputs = encoder(inputs);
+  print(outputs.shape);
+  decoder = Decoder();
+  decoder.save('decoder.h5');
+  outputs = decoder(outputs);
   print(outputs.shape);
