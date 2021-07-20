@@ -284,10 +284,13 @@ class VideoVQVAE(tf.keras.Model):
 
 if __name__ == "__main__":
 
-  trainer = VideoVQVAE_Trainer();
+  trainer = VideoVQVAE_Trainer(use_2d = True);
   trainer.save('trainer.h5');
   trainer.layers[1].save('encoder.h5');
   trainer.layers[2].save_weights('pre_vq_conv.h5');
+  inputs = np.random.normal(size = (4, 16, 64, 64, 3));
+  recon, quant_loss = trainer(inputs);
+  print(recon.shape, quant_loss.shape)
   '''
   video_vqvae = VideoVQVAE();
   inputs = np.random.normal(size = (4, 16,64,64,3));
