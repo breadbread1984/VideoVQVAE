@@ -21,7 +21,7 @@ after exeucting the command successfully, trainset.tfrecord and testset.tfrecord
 train Video VQVAE with the following command
 
 ```shell
-python3 train.py
+python3 train.py [--use_2d]
 ```
 
 ## save model from checkpoint
@@ -29,5 +29,17 @@ python3 train.py
 save the latest checkpoint with the following command
 
 ```shell
-python3 save_model.py
+python3 save_model.py [--use_2d]
 ```
+
+the trained model is saved under directory models
+
+## test the model
+
+test the model with command
+
+```shell
+python3 test.py
+```
+
+the original video clip and the reconstructed video clip will be shown side by side.

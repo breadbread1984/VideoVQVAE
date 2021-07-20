@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+from os.path import join;
 from absl import app, flags;
 import cv2;
 import tensorflow as tf;
