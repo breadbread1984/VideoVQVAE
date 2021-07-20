@@ -1,16 +1,19 @@
 #!/usr/bin/python3
 
 from os.path import exists, join;
+from absl import app, flags;
 import tensorflow as tf;
 from models import VideoVQVAE_Trainer;
 from create_dataset import load_ucf101;
 
-batch_size = 32;
-length = 16;
+FLAGS = flags.FLAGS;
+flags.DEFINE_boolean('use_2d', default = False, help = 'whether to use 2d to replace 3d conv');
+flags.DEFINE_integer('batch_size', default = 32, help = 'batch size');
+flags.DEFINE_integer('length', default = 16, help = 'video length');
 
-def main():
+def main(unused_argv):
   
-  trainer = VideoVQVAE_Trainer(use_2d = True);
+  trainer = VideoVQVAE_Trainer(use_2d = FLAGS.use_2d);
   if exists('./checkpoints/ckpt'): trainer.load_weights('./checkpoints/ckpt');
   optimizer = tf.keras.optimizers.Adam(3e-4);
   trainer.compile(optimizer = optimizer,
@@ -20,7 +23,7 @@ def main():
   class SummaryCallback(tf.keras.callbacks.Callback):
     def __init__(self, eval_freq = 100):
       self.eval_freq = eval_freq;
-      testset = load_ucf101('testset.tfrecord', length).batch(1);
+      testset = load_ucf101('testset.tfrecord', FLAGS.length).repeat(-1).batch(1);
       self.iter = iter(testset);
       self.recon_loss = tf.keras.metrics.Mean(name = 'recon_loss', dtype = tf.float32);
       self.quant_loss = tf.keras.metrics.Mean(name = 'quant_loss', dtype = tf.float32);
@@ -52,8 +55,8 @@ def main():
       pass;
 
   # load ucf101 dataset
-  trainset = load_ucf101('trainset.tfrecord', length).shuffle(batch_size).batch(batch_size).prefetch(tf.data.experimental.AUTOTUNE);
-  testset = load_ucf101('testset.tfrecord', length).shuffle(batch_size).batch(batch_size).prefetch(tf.data.experimental.AUTOTUNE);
+  trainset = load_ucf101('trainset.tfrecord', FLAGS.length).shuffle(FLAGS.batch_size).batch(FLAGS.batch_size).prefetch(tf.data.experimental.AUTOTUNE);
+  testset = load_ucf101('testset.tfrecord', FLAGS.length).shuffle(FLAGS.batch_size).batch(FLAGS.batch_size).prefetch(tf.data.experimental.AUTOTUNE);
   callbacks = [
     tf.keras.callbacks.TensorBoard(log_dir = './checkpoints'),
     tf.keras.callbacks.ModelCheckpoint(filepath = './checkpoints/ckpt', save_freq = 10000),
@@ -64,4 +67,4 @@ def main():
 
 if __name__ == "__main__":
 
-  main();
+  app.run(main);
