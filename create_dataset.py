@@ -64,7 +64,7 @@ def clip_sampler_generator(length = 16):
 def preprocess(clip):
   # NOTE: make clip value range in [-0.5, 0.5]
   clip = tf.cast(clip, dtype = tf.float32) / 255. - 0.5;
-  return clip;
+  return clip, {'recon_label': clip, 'quant_label': 0};
 
 def load_ucf101(filename, length = 16):
   return tf.data.TFRecordDataset(filename).map(parse_function).repeat(-1).map(clip_sampler_generator(length = length)).map(preprocess);

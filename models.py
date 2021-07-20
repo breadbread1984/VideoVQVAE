@@ -244,6 +244,15 @@ def Decoder(channels = 240, res_layers = 4, upsamples = (4,4,4), origin_shape = 
     n_times_upsamples -= 1;
   return tf.keras.Model(inputs = inputs, outputs = results);
 
+def VideoVQVAE_Trainer(channels = 240, embed_dim = 256, n_embed = 2048, res_layers = 4, scales = (4,4,4), origin_shape = (64, 64), use_2d = False):
+  inputs = tf.keras.Input((None, None, None, 3)); # inputs.shape = (batch, length, height, width, 3)
+  results = Encoder(channels, res_layers, scales, origin_shape, use_2d)(inputs);
+  results = Conv3D(channels, embed_dim, (1,1,1), (1,1,1), use_2d)(results);
+  quantized, tokens, quant_loss = CodeBook(embed_dim, n_embed)(results);
+  results = Conv3DTranspose(embed_dim, channels, (1,1,1), (1,1,1), use_2d)(quantized);
+  recon = Decoder(channels, res_layers, scales, origin_shape, use_2d)(results);
+  return tf.keras.Model(inputs = inputs, outputs = (recon, quant_loss));
+
 class VideoVQVAE(tf.keras.Model):
   def __init__(self, channels = 240, embed_dim = 256, n_embed = 2048, res_layers = 4, scales = (4,4,4), origin_shape = (64, 64), use_2d = False, **kwargs):
     super(VideoVQVAE, self).__init__(**kwargs);
@@ -274,28 +283,11 @@ class VideoVQVAE(tf.keras.Model):
     return loss;
 
 if __name__ == "__main__":
-  '''
-  attn_block = AttentionResidualBlock(256, (64,64), 0.2);
-  a = np.random.normal(size = (4, 16, 64, 64, 256));
-  results = attn_block(a);
-  print(results.shape);
-  
-  inputs = tf.keras.Input((10, 10, 10, 128,));
-  results = CodeBook()(inputs);
-  model = tf.keras.Model(inputs = inputs, outputs = results);
-  inputs = np.random.normal(size = (4, 10, 10, 10, 128));
-  outputs, cluster_index, loss = model(inputs);
-  print(outputs.shape);
-  '''
-  inputs = np.random.normal(size = (4, 16, 64, 64, 3));
-  encoder = Encoder(use_2d = True);
-  encoder.save('encoder.h5');
-  outputs = encoder(inputs);
-  print(outputs.shape);
-  decoder = Decoder(use_2d = True);
-  decoder.save('decoder.h5');
-  outputs = decoder(outputs);
-  print(outputs.shape);
+
+  trainer = VideoVQVAE_Trainer();
+  trainer.save('trainer.h5');
+  trainer.layers[1].save('encoder.h5');
+  trainer.layers[2].save_weights('pre_vq_conv.h5');
   '''
   video_vqvae = VideoVQVAE();
   inputs = np.random.normal(size = (4, 16,64,64,3));
