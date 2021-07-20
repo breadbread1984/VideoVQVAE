@@ -17,7 +17,7 @@ def main(unused_argv):
   trainer.layers[3].set_trainable(False);
   encoder = tf.keras.Model(inputs = trainer.layers[0].input, outputs = trainer.layers[3].output);
   encoder.save(join('models', 'encoder.h5'));
-  quantized = tf.keras.Input((None, None, None, 256));
+  quantized = tf.keras.Input(encoder.output[0].shape[1:]);
   results = trainer.layers[4](quantized);
   recon = trainer.layers[5](results);
   decoder = tf.keras.Model(inputs = quantized, outputs = recon);
