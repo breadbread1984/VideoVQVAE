@@ -52,17 +52,22 @@ def parse_function(serialized_example):
     features = {
       'video': tf.io.FixedLenFeature((), dtype = tf.string)
     });
-  video = tf.io.parse_tensor(feature['video']); # video.shape = (length, h, w, c)
+  video = tf.io.parse_tensor(feature['video'], out_type = tf.uint8); # video.shape = (length, h, w, c)
   return video;
 
 def clip_sampler_generator(length = 16):
   def clip_sampler(video):
-    start = np.random.randint(low = 0, high = video.shape[0] - length);
+    start = tf.random.uniform(shape = (), minval = 0, maxval = tf.shape(video)[0] - length, dtype = tf.int32);
     return video[start:start + length, ...];
   return clip_sampler;
 
+def preprocess(clip):
+  # NOTE: make clip value range in [-0.5, 0.5]
+  clip = tf.cast(clip, dtype = tf.float32) / 255. - 0.5;
+  return clip;
+
 def load_ucf101(filename, length = 16):
-  return tf.data.TFRecordDataset(filename).map(parse_function).repeat(-1).map(clip_sampler_generator(length = length));
+  return tf.data.TFRecordDataset(filename).map(parse_function).repeat(-1).map(clip_sampler_generator(length = length)).map(preprocess);
 
 if __name__ == "__main__":
   app.run(main);
