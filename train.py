@@ -3,7 +3,7 @@
 from os.path import exists, join;
 from absl import app, flags;
 import tensorflow as tf;
-from models import VideoVQVAE_Trainer;
+from models import VideoVQVAE_Trainer, CodeBook;
 from create_dataset import load_ucf101;
 
 FLAGS = flags.FLAGS;
@@ -11,15 +11,29 @@ flags.DEFINE_boolean('use_2d', default = False, help = 'whether to use 2d to rep
 flags.DEFINE_integer('batch_size', default = 32, help = 'batch size');
 flags.DEFINE_integer('length', default = 16, help = 'video length');
 
+def recon_loss(labels, outputs):
+  return tf.keras.losses.MeanSquaredError()(labels, outputs);
+
+def quant_loss(_, outputs):
+  return outputs;
+
 def main(unused_argv):
   
-  trainer = VideoVQVAE_Trainer(use_2d = FLAGS.use_2d);
-  if exists('./checkpoints/ckpt'): trainer.load_weights('./checkpoints/ckpt');
-  optimizer = tf.keras.optimizers.Adam(3e-4);
-  trainer.compile(optimizer = optimizer,
-                  loss = {'model_88': lambda labels, outputs: tf.keras.losses.MeanSquaredError()(labels, outputs),
-                          'code_book': lambda dummy, outputs: outputs},
-                  loss_weights = {'model_88': 16.67, 'code_book': 1});
+  if exists('./checkpoints/ckpt'):
+    trainer = tf.keras.models.load_model('./checkpoints/ckpt',
+                                         custom_objects = {'tf': tf,
+                                                           'CodeBook': CodeBook,
+                                                           'recon_loss': recon_loss,
+                                                           'quant_loss': quant_loss},
+                                         compile = True);
+    optimizer = trainer.optimizer;
+  else:
+    trainer = VideoVQVAE_Trainer(use_2d = FLAGS.use_2d);
+    optimizer = tf.keras.optimizers.Adam(3e-4);
+    trainer.compile(optimizer = optimizer,
+                    loss = {'model_88': recon_loss,
+                            'code_book': quant_loss},
+                    loss_weights = {'model_88': 16.67, 'code_book': 1});
   class SummaryCallback(tf.keras.callbacks.Callback):
     def __init__(self, eval_freq = 100):
       self.eval_freq = eval_freq;
