@@ -14,12 +14,20 @@ generate dataset with command
 python3 create_dataset.py --ucf_root=</path/to/UCF101/directory> --train_list=</path/to/train/list> --test_list=</path/to/test/list>
 ```
 
-after exeucting the command successfully, trainset.tfrecord and testset.tfrecord was created.
+after exeucting the command successfully, trainset.tfrecord and testset.tfrecord are created.
 
 ## train model
 
-train Video VQVAE with command
+train Video VQVAE with the following command
 
 ```shell
 python3 train.py
+```
+
+## save model from checkpoint
+
+save the latest checkpoint with the following command
+
+```shell
+python3 save_model.py
 ```
