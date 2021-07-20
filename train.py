@@ -37,7 +37,7 @@ def main():
         recon = tf.cast((recon + 0.5) * 255., dtype = tf.uint8);
         rows = list();
         for i in range(4):
-          row = tf.concat([recon[0,i * 4 + c,...] for c in range(4)], axis = 2); # row.shape = (1, 64, 64 * 4, 3)
+          row = tf.concat([recon[:,i * 4 + c,...] for c in range(4)], axis = 2); # row.shape = (1, 64, 64 * 4, 3)
           rows.append(row);
         total = tf.concat(rows, axis = 1); # total.shape = (1, 64 * 4, 64 * 4, 3)
         with self.log.as_default():
