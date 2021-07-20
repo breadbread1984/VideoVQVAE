@@ -14,8 +14,9 @@ def main():
   if exists('./checkpoints/ckpt'): trainer.load_weights('./checkpoints/ckpt');
   optimizer = tf.keras.optimizers.Adam(3e-4);
   trainer.compile(optimizer = optimizer,
-                  loss = {'recon_label': lambda labels, outputs: tf.keras.losses.MeanSquaredError()(labels, outputs), 'quant_label': lambda dummy, outputs: outputs},
-                  loss_weights = {'recon_label': 16.67, 'quant_label': 1});
+                  loss = {'model_88': lambda labels, outputs: tf.keras.losses.MeanSquaredError()(labels, outputs),
+                          'code_book': lambda dummy, outputs: outputs},
+                  loss_weights = {'model_88': 16.67, 'code_book': 1});
   class SummaryCallback(tf.keras.callbacks.Callback):
     def __init__(self, eval_freq = 100):
       self.eval_freq = eval_freq;
