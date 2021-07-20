@@ -18,8 +18,7 @@ def generate_dataset(video_root, video_list, size = (64,64), output_file = 'trai
   videos = list();
   with open(video_list, 'r') as f:
     for line in f:
-      path, classid = line.strip().split(' ');
-      classid = int(classid);
+      path = line.strip().split(' ')[0];
       videos.append(join(video_root, path));
   writer = tf.io.TFRecordWriter(output_file);
   for i in range(len(videos)):
@@ -56,8 +55,14 @@ def parse_function(serialized_example):
   video = tf.io.parse_tensor(feature['video']); # video.shape = (length, h, w, c)
   return video;
 
-def load_ucf101(filename):
-  return tf.data.TFRecordDataset(filename).map(parse_function).repeat(-1);
+def clip_sampler_generator(length = 16):
+  def clip_sampler(video):
+    start = np.random.randint(low = 0, high = video.shape[0] - length);
+    return video[start:start + length, ...];
+  return clip_sampler;
+
+def load_ucf101(filename, length = 16):
+  return tf.data.TFRecordDataset(filename).map(parse_function).repeat(-1).map(clip_sampler_generator(length = length));
 
 if __name__ == "__main__":
   app.run(main);
