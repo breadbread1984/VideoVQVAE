@@ -7,7 +7,8 @@ from models import CodeBook;
 from create_dataset import load_ucf101;
 
 FLAGS = flags.FLAGS;
-flags.DEFINE_string('testset', 'testset.tfrecord', help = "testset")
+flags.DEFINE_string('testset', 'testset.tfrecord', help = "testset");
+flags.DEFINE_integer('length', 16, help = "video length");
 
 def main(unused_argv):
   testset = load_ucf101(FLAGS.testset, FLAGS.length).repeat(-1).batch(1);
