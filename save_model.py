@@ -19,6 +19,9 @@ def main(unused_argv):
   trainer.layers[4].save_weights(join('models', 'post_vq_conv.h5'));
   trainer.layers[5].save(join('models', 'decoder.h5'));
   video_vqvae = VideoVQVAE(use_2d = FLAGS.use_2d);
+  # predict once to initialize subclass model's parameters
+  inputs = np.random.normal(size = (4, 16, 64, 64, 3));
+  outputs = video_vqvae(inputs);
   video_vqvae.encoder = tf.keras.models.load_model(join('models', 'encoder.h5'));
   video_vqvae.decoder = tf.keras.models.load_model(join('models', 'decoder.h5'));
   video_vqvae.pre_vq_conv.load_weights(join('models', 'pre_vq_conv.h5'));
