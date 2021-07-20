@@ -5,7 +5,7 @@ from os.path import exists, join;
 from absl import flags, app;
 import numpy as np;
 import tensorflow as tf;
-from models import VideoVQVAE_Trainer,VideoVQVAE
+from models import VideoVQVAE_Trainer
 
 FLAGS = flags.FLAGS;
 flags.DEFINE_boolean('use_2d', default = False, help = 'whether to use 2d to replace 3d conv');
