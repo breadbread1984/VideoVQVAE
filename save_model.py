@@ -13,6 +13,7 @@ def main(unused_argv):
   if not exists('models'): mkdir('models');
   trainer = VideoVQVAE_Trainer(use_2d = FLAGS.use_2d);
   trainer.load_weights('./checkpoints/ckpt');
+  trainer.save(join('models', 'trainer.h5'));
   trainer.layers[1].save(join('models', 'encoder.h5'));
   trainer.layers[2].save_weights(join('models', 'pre_vq_conv.h5'));
   trainer.layers[3].save(join('models', 'codebook.h5'));

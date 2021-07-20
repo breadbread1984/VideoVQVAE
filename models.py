@@ -142,11 +142,11 @@ def AttentionResidualBlock(channels, origin_shape, drop_rate = 0.2):
   return tf.keras.Model(inputs = inputs, outputs = results);
 
 class CodeBook(tf.keras.layers.Layer):
-  def __init__(self, embed_dim = 128, n_embed = 10000, **kwargs):
+  def __init__(self, embed_dim = 128, n_embed = 10000, initialized = None, enable_train = None, **kwargs):
     self.embed_dim = embed_dim;
     self.n_embed = n_embed;
-    self.initialized = False if 'initialized' not in kwargs else kwargs['initialized'];
-    self.enable_train = True;
+    self.initialized = False if initialized is None else initialized;
+    self.enable_train = True if enable_train is None else enable_train;
     super(CodeBook, self).__init__(**kwargs);
   def build(self, input_shape):
     self.cluster_mean = self.add_weight(shape = (self.n_embed, self.embed_dim), dtype = tf.float32, trainable = True, name = 'cluster_mean');
