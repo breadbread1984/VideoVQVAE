@@ -16,7 +16,6 @@ def main(unused_argv):
   trainer.save(join('models', 'trainer.h5'));
   trainer.layers[1].save(join('models', 'encoder.h5'));
   trainer.layers[2].save_weights(join('models', 'pre_vq_conv.h5'));
-  trainer.layers[3].save_weights(join('models', 'codebook.h5'));
   trainer.layers[4].save_weights(join('models', 'post_vq_conv.h5'));
   trainer.layers[5].save(join('models', 'decoder.h5'));
   video_vqvae = VideoVQVAE(use_2d = FLAGS.use_2d);
@@ -24,7 +23,9 @@ def main(unused_argv):
   video_vqvae.decoder = tf.keras.models.load_model(join('models', 'decoder.h5'));
   video_vqvae.pre_vq_conv.load_weights(join('models', 'pre_vq_conv.h5'));
   video_vqvae.post_vq_conv.load_weights(join('models', 'post_vq_conv.h5'));
-  video_vqvae.codebook.load_weights(join('models', 'codebook.h5'));
+  video_vqvae.codebook.cluster_mean.assign(trainer.layers[3].cluster_mean);
+  video_vqvae.codebook.cluster_size.assign(trainer.layers[3].cluster_size);
+  video_vqvae.codebook.cluster_sum.assign(trainer.layers[3].cluster_sum);
   video_vqvae.save_weights(join('models', 'video_vqvae_weights.h5'));
 
 if __name__ == "__main__":
