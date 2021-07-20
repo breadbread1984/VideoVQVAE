@@ -3,6 +3,7 @@
 from os import mkdir;
 from os.path import exists, join;
 from absl import flags, app;
+import numpy as np;
 import tensorflow as tf;
 from models import VideoVQVAE_Trainer,VideoVQVAE
 
@@ -29,6 +30,8 @@ def main(unused_argv):
   video_vqvae.codebook.cluster_mean.assign(trainer.layers[3].cluster_mean);
   video_vqvae.codebook.cluster_size.assign(trainer.layers[3].cluster_size);
   video_vqvae.codebook.cluster_sum.assign(trainer.layers[3].cluster_sum);
+  video_vqvae.codebook.initialized = True;
+  video_vqvae.codebook.enable_train = False;
   video_vqvae.save_weights(join('models', 'video_vqvae_weights.h5'));
 
 if __name__ == "__main__":
