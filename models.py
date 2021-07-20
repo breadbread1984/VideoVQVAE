@@ -253,47 +253,10 @@ def VideoVQVAE_Trainer(channels = 240, embed_dim = 256, n_embed = 2048, res_laye
   recon = Decoder(channels, res_layers, scales, origin_shape, use_2d)(results);
   return tf.keras.Model(inputs = inputs, outputs = (recon, quant_loss));
 
-class VideoVQVAE(tf.keras.Model):
-  def __init__(self, channels = 240, embed_dim = 256, n_embed = 2048, res_layers = 4, scales = (4,4,4), origin_shape = (64, 64), use_2d = False, **kwargs):
-    super(VideoVQVAE, self).__init__(**kwargs);
-    self.encoder = Encoder(channels, res_layers, scales, origin_shape, use_2d);
-    self.decoder = Decoder(channels, res_layers, scales, origin_shape, use_2d);
-    self.pre_vq_conv = Conv3D(channels, embed_dim, (1,1,1), (1,1,1), use_2d);
-    self.post_vq_conv = Conv3DTranspose(embed_dim, channels, (1,1,1), (1,1,1), use_2d);
-    self.codebook = CodeBook(embed_dim, n_embed);
-  def encode(self, inputs):
-    # inputs.shape = (batch, origin_shape[0], origin_shape[1], 3)
-    results = self.encoder(inputs);
-    results = self.pre_vq_conv(results);
-    quantized, tokens, loss = self.codebook(results);
-    return quantized, tokens, loss;
-  def decode(self, tokens):
-    # tokens.shape = (batch, length, h, w)
-    embed_mat = self.codebook.get_embed();
-    quantized = tf.nn.embedding_lookup(embed_mat, tokens); # quantized.shape = (batch, length, h, w, embed_dim)
-    results = self.post_vq_conv(quantized); # results.shape = (batch, length, h, w, channels)
-    results = self.decoder(results); # results.shape = (batch, length, h, w, 3)
-    return results;
-  def call(self, inputs):
-    # inputs.shape = (batch, origin_shape[0], origin_shape[1], 3)
-    quantized, tokens, quant_loss = self.encode(inputs);
-    recon = self.decode(tokens);
-    recon_loss = tf.keras.losses.MeanSquaredError()(inputs, recon) / 0.06;
-    loss = recon_loss + quant_loss;
-    return loss;
-
 if __name__ == "__main__":
 
   trainer = VideoVQVAE_Trainer(use_2d = True);
   trainer.save('trainer.h5');
-  trainer.layers[1].save('encoder.h5');
-  trainer.layers[2].save_weights('pre_vq_conv.h5');
   inputs = np.random.normal(size = (4, 16, 64, 64, 3));
   recon, quant_loss = trainer(inputs);
   print(recon.shape, quant_loss.shape)
-  '''
-  video_vqvae = VideoVQVAE();
-  inputs = np.random.normal(size = (4, 16,64,64,3));
-  loss = video_vqvae(inputs);
-  print(loss.shape);
-  '''
