@@ -10,11 +10,12 @@ from create_dataset import load_ucf101;
 FLAGS = flags.FLAGS;
 flags.DEFINE_string('testset', 'testset.tfrecord', help = "testset");
 flags.DEFINE_integer('length', 16, help = "video length");
+flags.DEFINE_boolean('use_2d', False, 'whether to use 2d conv to replace 3d conv')
 
 def main(unused_argv):
   testset = load_ucf101(FLAGS.testset, FLAGS.length).repeat(-1).batch(1);
-  encoder = tf.keras.models.load_model(join('models', 'encoder.h5'), custom_objects = {'CodeBook': CodeBook});
-  decoder = tf.keras.models.load_model(join('models', 'decoder.h5'));
+  encoder = tf.keras.models.load_model(join('models', 'encoder_use2d.h5' if FLAGS.use_2d else 'encoder.h5'), custom_objects = {'CodeBook': CodeBook});
+  decoder = tf.keras.models.load_model(join('models', 'decoder_use2d.h5' if FLAGS.use_2d else 'decoder.h5'));
   for clip, label_dict in testset:
     quantized, tokens, quant_loss = encoder(clip);
     recon = decoder(quantized);

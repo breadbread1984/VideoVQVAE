@@ -39,7 +39,7 @@ the trained model is saved under directory models
 test the model with command
 
 ```shell
-python3 test.py
+python3 test.py [--use_2d]
 ```
 
 the original video clip and the reconstructed video clip will be shown side by side.
