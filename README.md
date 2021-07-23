@@ -43,3 +43,14 @@ python3 test.py [--use_2d]
 ```
 
 the original video clip and the reconstructed video clip will be shown side by side.
+
+## experimental results
+
+<p align="center">
+  <table>
+    <caption>experimental results</caption>
+    <tr><td><img src="pics/results1.png" /></td><td><img src="pics/results2.png" /></td></tr>
+    <tr><td><img src="pics/results3.png" /></td><td><img src="pics/results4.png" /></td></tr>
+  </table>
+</p>
+
