@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 from os.path import exists, join;
+from math import ceil;
 from absl import app, flags;
 import tensorflow as tf;
 from models import VideoVQVAE_Trainer, CodeBook;
@@ -10,6 +11,9 @@ FLAGS = flags.FLAGS;
 flags.DEFINE_boolean('use_2d', default = False, help = 'whether to use 2d to replace 3d conv');
 flags.DEFINE_integer('batch_size', default = 32, help = 'batch size');
 flags.DEFINE_integer('length', default = 16, help = 'video length');
+
+TRAINSET_SIZE = 9537;
+TESTSET_SIZE = 3783;
 
 def recon_loss(labels, outputs):
   return tf.keras.losses.MeanSquaredError()(labels, outputs);
@@ -42,7 +46,7 @@ def main(unused_argv):
     tf.keras.callbacks.TensorBoard(log_dir = './checkpoints'),
     tf.keras.callbacks.ModelCheckpoint(filepath = './checkpoints/ckpt', save_freq = 10000)
   ];
-  trainer.fit(trainset, epochs = 560, validation_data = testset, callbacks = callbacks);
+  trainer.fit(trainset, steps_per_epoch = ceil(TRAINSET_SIZE / FLAGS.batch_size), epochs = 560, validation_data = testset, validation_steps = ceil(TESETSET_SIZE / FLAGS.batch_size), callbacks = callbacks);
   trainer.save('trainer.h5');
 
 if __name__ == "__main__":
