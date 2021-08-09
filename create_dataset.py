@@ -58,7 +58,9 @@ def parse_function(serialized_example):
 def clip_sampler_generator(length = 16):
   def clip_sampler(video):
     start = tf.random.uniform(shape = (), minval = 0, maxval = tf.shape(video)[0] - length, dtype = tf.int32);
-    return video[start:start + length, ...];
+    retval = video[start:start + length, ...];
+    retval.set_shape((length, 64, 64, 3));
+    return retval;
   return clip_sampler;
 
 def preprocess(clip):
