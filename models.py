@@ -142,64 +142,31 @@ def AttentionResidualBlock(channels, origin_shape, drop_rate = 0.2):
   return tf.keras.Model(inputs = inputs, outputs = results);
 
 class CodeBook(tf.keras.layers.Layer):
-  def __init__(self, embed_dim = 128, n_embed = 10000, initialized = None, enable_train = None, **kwargs):
+  def __init__(self, embed_dim = 128, n_embed = 10000, **kwargs):
     self.embed_dim = embed_dim;
     self.n_embed = n_embed;
-    self.initialized = False if initialized is None else initialized;
-    self.enable_train = True if enable_train is None else enable_train;
     super(CodeBook, self).__init__(**kwargs);
   def build(self, input_shape):
     self.cluster_mean = self.add_weight(shape = (self.n_embed, self.embed_dim), dtype = tf.float32, trainable = True, name = 'cluster_mean');
-    self.cluster_size = self.add_weight(shape = (self.n_embed,), dtype = tf.float32, initializer = tf.keras.initializers.Zeros(), trainable = True, name = 'cluster_size');
-    self.cluster_sum = self.add_weight(shape = (self.n_embed, self.embed_dim), dtype = tf.float32, trainable = True, name = 'cluster_sum');
   def get_embed(self,):
     return self.cluster_mean;
-  def set_trainable(self, enable_train = True):
-    self.enable_train = enable_train;
   def call(self, inputs):
     # inputs.shape = (batch, length, h, w, c)
-    if self.initialized == False:
-      # initialize clusters with the first batch of samples
-      samples = tf.reshape(inputs, (-1, tf.shape(inputs)[-1])); # samples.shape = (batch * length * h * w, c)
-      if tf.math.less(tf.shape(samples)[0], self.n_embed):
-        # if number of samples for initialization is too small, do bootstrapping
-        n_repeat = (self.n_embed + tf.shape(samples)[0] - 1) // tf.shape(samples)[0]; # n_repeat.shape = ()
-        samples = tf.tile(samples, (n_repeat, 1)); # x.shape = (n_repeat * batch * length * h * w, c)
-        stddev = 0.01 / tf.math.sqrt(tf.cast(tf.shape(samples)[1], dtype = tf.float32)); # std.shape = ()
-        samples = samples + tf.random.normal(tf.shape(samples), stddev = stddev); # x.shape = (n_repeat * batch * length * h * w, c)
-      samples = tf.random.shuffle(samples)[:self.n_embed]; # samples.shape = (n_embed, c)
-      self.cluster_mean.assign(samples);
-      self.cluster_sum.assign(samples);
-      self.cluster_size.assign(tf.ones((self.n_embed,)));
-      self.initialized = True;
     samples = tf.reshape(inputs, (-1, tf.shape(inputs)[-1])); # samples.shape = (batch * length * h * w, c)
     # dist = (X - cluster_mean)^2 = X' * X - 2 * X' * Embed + trace(Embed' * Embed),  dist.shape = (n_sample, n_embed), euler distances to cluster_meanding vectors
     dist = tf.math.reduce_sum(samples ** 2, axis = 1, keepdims = True) - 2 * tf.linalg.matmul(samples, self.cluster_mean, transpose_b = True) + tf.math.reduce_sum(tf.transpose(self.cluster_mean) ** 2, axis = 0, keepdims = True);
     cluster_index = tf.math.argmin(dist, axis = 1); # cluster_index.shape = (n_sample)
-    if self.enable_train:
-       # NOTE: code book is updated during forward propagation
-      cluster_index_onehot = tf.one_hot(cluster_index, self.n_embed); # cluster_index_onehot.shape = (n_sample, n_embed)
-      cluster_size = tf.math.reduce_sum(cluster_index_onehot, axis = 0); # cluster_size.shape = (n_embed)
-      cluster_sum = tf.linalg.matmul(samples, cluster_index_onehot, transpose_a = True); # cluster_sum.shape = (dim, n_embed)
-      updated_cluster_size = self.cluster_size * 0.99 + cluster_size * (1 - 0.99); # updated_cluster_size.shape = (n_embed)
-      updated_cluster_sum = self.cluster_sum * 0.99 + tf.transpose(cluster_sum) * (1 - 0.99); # updated_cluster_sum.shape = (dim, n_embed)
-      self.cluster_size.assign(updated_cluster_size);
-      self.cluster_sum.assign(updated_cluster_sum);
-      n_sample = tf.math.reduce_sum(self.cluster_size); # n_sample.shape = ()
-      cluster_size = (self.cluster_size + 1e-5) * n_sample / (n_sample + self.n_embed * 1e-5); # cluster_size.shape = (n_embed)
-      cluster_mean = self.cluster_sum / tf.expand_dims(cluster_size, axis = -1); # cluster_mean.shape = (dim, n_embed)
-      self.cluster_mean.assign(cluster_mean);
     cluster_index = tf.reshape(cluster_index, tf.shape(inputs)[:-1]); # cluster_index.shape = (batch, length, h, w)
     quantize = tf.nn.embedding_lookup(self.cluster_mean, cluster_index); # quantize.shape = (batch, length, h, w, dim)
-    e_loss = tf.math.reduce_mean((inputs - tf.stop_gradient(quantize)) ** 2); # diff.shape = (n_sample,)
+    q_loss = tf.math.reduce_mean((quantize - tf.stop_gradient(inputs)) ** 2); # q_loss.shape = (n_sample,)
+    e_loss = tf.math.reduce_mean((tf.stop_gradient(quantize) - inputs) ** 2); # e_loss.shape = (n_sample,)
+    loss = q_loss + 0.25 * e_loss;
     outputs = inputs + tf.stop_gradient(quantize - inputs);
-    return outputs, cluster_index, 0.25 * e_loss;
+    return outputs, cluster_index, loss;
   def get_config(self):
     config = super(CodeBook, self).get_config();
     config['embed_dim'] = self.embed_dim;
     config['n_embed'] = self.n_embed;
-    config['initialized'] = self.initialized;
-    config['enable_train'] = self.enable_train;
     return config;
   @classmethod
   def from_config(cls, config):
