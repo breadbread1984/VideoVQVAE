@@ -125,16 +125,16 @@ def Conv3DTranspose(in_channels, out_channels = None, kernel_size = None, stride
     results = tf.keras.layers.Lambda(lambda x: tf.transpose(x, (0, 3, 1, 2, 4)))(results); # results.shape = (batch, length * 2, h * 2, w * 2, c)
   return tf.keras.Model(inputs = inputs, outputs = results);
 
-def AttentionResidualBlock(channels, origin_shape, drop_rate = 0.2):
+def AttentionResidualBlock(channels, origin_shape, drop_rate = 0.2, use_2d = False):
   assert type(origin_shape) in [list, tuple] and len(origin_shape) == 2;
   inputs = tf.keras.Input((None, origin_shape[0], origin_shape[1], channels)); # inputs.shape = (batch, length, h, w, c)
   short = inputs;
   results = tf.keras.layers.BatchNormalization()(inputs);
   results = tf.keras.layers.ReLU()(results);
-  results = Conv3D(channels, channels // 2, (3,3,3), (1,1,1))(results);
+  results = Conv3D(channels, channels // 2, (3,3,3), (1,1,1), use_2d = use_2d)(results);
   results = tf.keras.layers.BatchNormalization()(results);
   results = tf.keras.layers.ReLU()(results);
-  results = Conv3D(channels // 2, channels, (1,1,1), (1,1,1))(results);
+  results = Conv3D(channels // 2, channels, (1,1,1), (1,1,1), use_2d = use_2d)(results);
   results = tf.keras.layers.BatchNormalization()(results);
   results = tf.keras.layers.ReLU()(results);
   results = AxialBlock(channels, 2, origin_shape, drop_rate)(results);
@@ -220,7 +220,7 @@ def Encoder(channels = 240, res_layers = 4, downsamples = (4,4,4), origin_shape 
     n_times_downsamples -= 1;
   results = Conv3D(channels, channels, (3,3,3), (1,1,1), use_2d)(results); # results.shape = (batch, length, h, w, c)
   for i in range(res_layers):
-    results = AttentionResidualBlock(channels, (origin_shape[0] // downsamples[1], origin_shape[1] // downsamples[2]), 0.2)(results); #results.shape = (batch, length, h, w, c)
+    results = AttentionResidualBlock(channels, (origin_shape[0] // downsamples[1], origin_shape[1] // downsamples[2]), 0.2, use_2d = use_2d)(results); #results.shape = (batch, length, h, w, c)
   results = tf.keras.layers.BatchNormalization()(results);
   results = tf.keras.layers.ReLU()(results);
   return tf.keras.Model(inputs = inputs, outputs = results);
@@ -231,7 +231,7 @@ def Decoder(channels = 240, res_layers = 4, upsamples = (4,4,4), origin_shape = 
   inputs = tf.keras.Input((None, origin_shape[0] // upsamples[1], origin_shape[1] // upsamples[2], 240)); # inputs.shape = (batch, length, h, w, c)
   results = inputs;
   for i in range(res_layers):
-    results = AttentionResidualBlock(channels, (origin_shape[0] // upsamples[1], origin_shape[1] // upsamples[2]), 0.2)(results); # results.shape = (batch, length, h, w, c)
+    results = AttentionResidualBlock(channels, (origin_shape[0] // upsamples[1], origin_shape[1] // upsamples[2]), 0.2, use_2d = use_2d)(results); # results.shape = (batch, length, h, w, c)
   results = tf.keras.layers.BatchNormalization()(results);
   results = tf.keras.layers.ReLU()(results);
   n_times_upsamples = np.array([int(log2(d)) for d in upsamples]);
