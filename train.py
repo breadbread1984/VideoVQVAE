@@ -40,8 +40,8 @@ def main(unused_argv):
                     loss_weights = {'model_88': 16.67, 'code_book': 1});
 
   # load ucf101 dataset
-  trainset = load_ucf101('trainset.tfrecord', FLAGS.length).shuffle(FLAGS.batch_size).batch(FLAGS.batch_size).prefetch(tf.data.experimental.AUTOTUNE);
-  testset = load_ucf101('testset.tfrecord', FLAGS.length).shuffle(FLAGS.batch_size).batch(FLAGS.batch_size).prefetch(tf.data.experimental.AUTOTUNE);
+  trainset = load_ucf101('trainset.tfrecord', FLAGS.length).shuffle(FLAGS.batch_size).batch(FLAGS.batch_size).prefetch(tf.data.experimental.AUTOTUNE).repeat(-1);
+  testset = load_ucf101('testset.tfrecord', FLAGS.length).shuffle(FLAGS.batch_size).batch(FLAGS.batch_size).prefetch(tf.data.experimental.AUTOTUNE).repeat(-1);
   callbacks = [
     tf.keras.callbacks.TensorBoard(log_dir = './checkpoints'),
     tf.keras.callbacks.ModelCheckpoint(filepath = './checkpoints/ckpt', save_freq = 10000)
