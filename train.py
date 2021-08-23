@@ -46,7 +46,7 @@ def main(unused_argv):
     tf.keras.callbacks.TensorBoard(log_dir = './checkpoints'),
     tf.keras.callbacks.ModelCheckpoint(filepath = './checkpoints/ckpt', save_freq = 10000)
   ];
-  trainer.fit(trainset, steps_per_epoch = ceil(TRAINSET_SIZE / FLAGS.batch_size), epochs = 560, validation_data = testset, validation_steps = ceil(TESETSET_SIZE / FLAGS.batch_size), callbacks = callbacks);
+  trainer.fit(trainset, steps_per_epoch = ceil(TRAINSET_SIZE / FLAGS.batch_size), epochs = 560, validation_data = testset, validation_steps = ceil(TESTSET_SIZE / FLAGS.batch_size), callbacks = callbacks);
   trainer.save('trainer.h5');
 
 if __name__ == "__main__":
